@@ -864,7 +864,7 @@ public class EventListenerProcessor implements ApplicationListener<ContextRefres
             this.annotation = annotation;
             
             // Make method accessible if needed
-            if (!method.isAccessible()) {
+            if (!method.canAccess(bean)) {
                 method.setAccessible(true);
             }
         }
