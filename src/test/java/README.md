@@ -14,7 +14,7 @@ The test suite is designed following professional testing best practices and cov
 
 ```
 src/test/java/
-├── com/firefly/common/eda/
+├── org/fireflyframework/common/eda/
 │   ├── config/                    # Auto-configuration tests
 │   │   └── EdaAutoConfigurationTest.java
 │   ├── integration/               # Integration tests with Testcontainers
@@ -38,7 +38,7 @@ src/test/java/
 
 ### 1. Configuration & Properties Tests
 
-**Location:** `com.firefly.common.eda.properties`
+**Location:** `org.fireflyframework.eda.properties`
 
 Tests verify:
 - Default property values are correctly applied
@@ -51,7 +51,7 @@ Tests verify:
 
 ### 2. Auto-Configuration Tests
 
-**Location:** `com.firefly.common.eda.config`
+**Location:** `org.fireflyframework.eda.config`
 
 Tests verify:
 - Spring Boot auto-configuration activates correctly
@@ -63,7 +63,7 @@ Tests verify:
 
 ### 3. Serialization Tests
 
-**Location:** `com.firefly.common.eda.serialization`
+**Location:** `org.fireflyframework.eda.serialization`
 
 Tests verify:
 - JSON serialization/deserialization
@@ -77,7 +77,7 @@ Tests verify:
 
 ### 4. Publisher Tests
 
-**Location:** `com.firefly.common.eda.publisher`
+**Location:** `org.fireflyframework.eda.publisher`
 
 Tests verify:
 - Event publishing works correctly
@@ -90,7 +90,7 @@ Tests verify:
 
 ### 5. Integration Tests
 
-**Location:** `com.firefly.common.eda.integration`
+**Location:** `org.fireflyframework.eda.integration`
 
 Integration tests use **Testcontainers** to spin up real messaging infrastructure:
 

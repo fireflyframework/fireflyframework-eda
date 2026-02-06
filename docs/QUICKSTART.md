@@ -43,8 +43,8 @@ Add the Firefly EDA library to your `pom.xml`:
 <dependencies>
     <!-- Firefly EDA Library -->
     <dependency>
-        <groupId>com.firefly</groupId>
-        <artifactId>lib-common-eda</artifactId>
+        <groupId>org.fireflyframework</groupId>
+        <artifactId>fireflyframework-eda</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </dependency>
     
@@ -562,7 +562,7 @@ Now that you have a basic setup running:
 Make sure you have the correct Spring Boot version and the library is in your classpath:
 
 ```bash
-mvn dependency:tree | grep lib-common-eda
+mvn dependency:tree | grep fireflyframework-eda
 ```
 
 **2. Publishers not available**

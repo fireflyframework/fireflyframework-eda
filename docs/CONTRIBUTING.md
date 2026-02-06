@@ -30,8 +30,8 @@ This project adheres to a code of conduct that promotes a welcoming and inclusiv
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/firefly-oss/lib-common-eda.git
-   cd lib-common-eda
+   git clone https://github.org/fireflyframework-oss/fireflyframework-eda.git
+   cd fireflyframework-eda
    ```
 
 2. **Build the project**

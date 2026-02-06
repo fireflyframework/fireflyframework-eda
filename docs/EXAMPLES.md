@@ -6,7 +6,7 @@ Practical examples demonstrating common usage patterns and advanced features of 
 
 - [Basic Examples](#basic-examples)
 - [E-Commerce Platform Example](#e-commerce-platform-example)
-- [Banking System Example](#banking-system-example)
+- [Financial System Example](#financial-system-example)
 - [Multi-Platform Configuration](#multi-platform-configuration)
 - [Testing Examples](#testing-examples)
 - [Production Patterns](#production-patterns)
@@ -376,9 +376,9 @@ public class PaymentService {
 }
 ```
 
-## Banking System Example
+## Financial System Example
 
-Banking system with strict consistency requirements and audit trails.
+Financial system with strict consistency requirements and audit trails.
 
 ### Domain Events
 
@@ -427,7 +427,7 @@ public class AccountService {
         destination = "account-events",
         eventType = "account.created",
         key = "#{#result.customerId}",
-        async = false,  // Synchronous for banking
+        async = false,  // Synchronous for financial
         headers = {
             "compliance-required=true",
             "audit-level=HIGH"

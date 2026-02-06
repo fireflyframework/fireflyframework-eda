@@ -1117,7 +1117,7 @@ curl http://localhost:8080/actuator/metrics/firefly.eda.publish.count
 **Solutions**:
 - Verify publisher configuration
 - Check if the messaging platform is running
-- Enable debug logging: `logging.level.com.firefly.common.eda=DEBUG`
+- Enable debug logging: `logging.level.org.fireflyframework.eda=DEBUG`
 
 #### 2. Consumer Not Processing Events
 

@@ -971,7 +971,7 @@ firefly:
 
 logging:
   level:
-    com.firefly.common.eda: DEBUG
+    org.fireflyframework.eda: DEBUG
 ```
 
 ### Spring Configuration

@@ -5,13 +5,13 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.firefly</groupId>
-        <artifactId>lib-parent-pom</artifactId>
+        <groupId>org.fireflyframework</groupId>
+        <artifactId>fireflyframework-parent</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>lib-common-eda</artifactId>
-    <name>Firefly Common EDA Library</name>
+    <artifactId>fireflyframework-eda</artifactId>
+    <name>Firefly Framework - Common EDA Library</name>
     <description>Unified Event-Driven Architecture library providing standardized messaging abstractions and implementations</description>
 
     <dependencies>

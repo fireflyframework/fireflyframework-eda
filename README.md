@@ -3,9 +3,9 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Java Version](https://img.shields.io/badge/Java-21+-orange.svg)](https://openjdk.java.net/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2+-green.svg)](https://spring.io/projects/spring-boot)
-[![Firefly Platform](https://img.shields.io/badge/Firefly-OpenCore%20Banking%20Platform-red.svg)](https://getfirefly.io)
+[![Firefly Platform](https://img.shields.io/badge/Firefly-Framework-red.svg)](https://getfirefly.io)
 
-**A unified, reactive Event-Driven Architecture library for the Firefly OpenCore Banking Platform**
+**A unified, reactive Event-Driven Architecture library for the Firefly Framework**
 
 ---
 
@@ -47,7 +47,7 @@
 
 ## Overview
 
-The Firefly Event Driven Architecture (EDA) Library is a comprehensive, production-ready solution for implementing event-driven patterns in modern Spring Boot applications. Built as part of the Firefly OpenCore Banking Platform, it provides standardized abstractions and implementations for publishing and consuming events across multiple messaging platforms.
+The Firefly Event Driven Architecture (EDA) Library is a comprehensive, production-ready solution for implementing event-driven patterns in modern Spring Boot applications. Built as part of the Firefly Framework, it provides standardized abstractions and implementations for publishing and consuming events across multiple messaging platforms.
 
 ## Key Features
 
@@ -105,8 +105,8 @@ The Firefly Event Driven Architecture (EDA) Library is a comprehensive, producti
 
 ```xml
 <dependency>
-    <groupId>com.firefly</groupId>
-    <artifactId>lib-common-eda</artifactId>
+    <groupId>org.fireflyframework</groupId>
+    <artifactId>fireflyframework-eda</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 </dependency>
 ```
@@ -742,10 +742,10 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 ## Support
 
-- 🐛 **Issues**: [GitHub Issues](https://github.com/firefly-oss/lib-common-eda/issues)
-- 📖 **Documentation**: [Wiki](https://github.com/firefly-oss/lib-common-eda/wiki)
+- 🐛 **Issues**: [GitHub Issues](https://github.org/fireflyframework-oss/fireflyframework-eda/issues)
+- 📖 **Documentation**: [Wiki](https://github.org/fireflyframework-oss/fireflyframework-eda/wiki)
 - 🌐 **Website**: [getfirefly.io](https://getfirefly.io)
 
 ---
 
-**Part of the [Firefly OpenCore Banking Platform](https://getfirefly.io)** 🏦
+**Part of the [Firefly Framework](https://getfirefly.io)** 🏦
