@@ -29,7 +29,7 @@ The library manages all provider-specific configurations internally, ensuring co
 ## Prerequisites
 
 - **Java 21+**: The library requires Java 21 or higher
-- **Spring Boot 3.2+**: Compatible with Spring Boot 3.2 and above
+- **Spring Boot 3.5+**: Compatible with Spring Boot 3.2 and above
 - **Messaging Platform**: One of the following (for development, you can use Docker):
   - Apache Kafka
   - RabbitMQ
