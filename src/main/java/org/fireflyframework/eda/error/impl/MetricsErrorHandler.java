@@ -17,10 +17,8 @@
 package org.fireflyframework.eda.error.impl;
 
 import org.fireflyframework.eda.error.CustomErrorHandler;
-import io.micrometer.core.instrument.Counter;
+import org.fireflyframework.observability.metrics.FireflyMetricsSupport;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -28,31 +26,25 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 /**
- * Custom error handler that records error metrics.
- * <p>
- * This handler demonstrates how to integrate custom error handling
- * with metrics collection for monitoring and observability.
+ * Custom error handler that records error metrics via {@link FireflyMetricsSupport}.
  */
 @Component
 @ConditionalOnClass(MeterRegistry.class)
 @ConditionalOnProperty(prefix = "firefly.eda.error.metrics", name = "enabled", havingValue = "true", matchIfMissing = true)
-@RequiredArgsConstructor
 @Slf4j
-public class MetricsErrorHandler implements CustomErrorHandler {
+public class MetricsErrorHandler extends FireflyMetricsSupport implements CustomErrorHandler {
 
-    private final MeterRegistry meterRegistry;
-    private final Map<String, Counter> errorCounters = new ConcurrentHashMap<>();
-    private final Map<String, Timer> errorTimers = new ConcurrentHashMap<>();
+    public MetricsErrorHandler(MeterRegistry meterRegistry) {
+        super(meterRegistry, "eda");
+    }
 
     @Override
     public Mono<Void> handleError(Object event, Map<String, Object> headers,
                                  Throwable error, String listenerMethod) {
-        return Mono.fromRunnable(() -> {
-            recordErrorMetrics(event, headers, error, listenerMethod);
-        });
+        return Mono.fromRunnable(() -> recordErrorMetrics(event, headers, error, listenerMethod));
     }
 
     @Override
@@ -62,47 +54,29 @@ public class MetricsErrorHandler implements CustomErrorHandler {
 
     @Override
     public int getPriority() {
-        return 50; // Medium priority for metrics
+        return 50;
     }
 
     private void recordErrorMetrics(Object event, Map<String, Object> headers, Throwable error, String listenerMethod) {
-        try {
-            // Record error count by type and listener method
-            String errorType = error.getClass().getSimpleName();
-            String eventType = event.getClass().getSimpleName();
-            
-            // Error counter by listener method and error type
-            String counterKey = String.format("eda.listener.errors.%s.%s", listenerMethod, errorType);
-            Counter counter = errorCounters.computeIfAbsent(counterKey, key ->
-                Counter.builder("eda.listener.errors")
-                       .description("Number of errors in event listeners")
-                       .tag("listener.method", listenerMethod)
-                       .tag("error.type", errorType)
-                       .tag("event.type", eventType)
-                       .register(meterRegistry)
-            );
-            counter.increment();
+        String errorType = error.getClass().getSimpleName();
+        String eventType = event.getClass().getSimpleName();
 
-            // Record error timing (if available in headers)
-            Object startTime = headers.get("processing.start.time");
-            if (startTime instanceof Long) {
-                long duration = System.currentTimeMillis() - (Long) startTime;
-                String timerKey = String.format("eda.listener.error.duration.%s", listenerMethod);
-                Timer timer = errorTimers.computeIfAbsent(timerKey, key ->
-                    Timer.builder("eda.listener.error.duration")
-                         .description("Duration of failed event processing")
-                         .tag("listener.method", listenerMethod)
-                         .tag("error.type", errorType)
-                         .register(meterRegistry)
-                );
-                timer.record(duration, java.util.concurrent.TimeUnit.MILLISECONDS);
-            }
+        counter("listener.errors",
+                "listener.method", listenerMethod,
+                "error.type", errorType,
+                "event.type", eventType)
+                .increment();
 
-            log.debug("Recorded error metrics for {} in {}: {}", 
-                     errorType, listenerMethod, error.getMessage());
-
-        } catch (Exception e) {
-            log.warn("Failed to record error metrics", e);
+        Object startTime = headers.get("processing.start.time");
+        if (startTime instanceof Long) {
+            long duration = System.currentTimeMillis() - (Long) startTime;
+            timer("listener.error.duration",
+                    "listener.method", listenerMethod,
+                    "error.type", errorType)
+                    .record(duration, TimeUnit.MILLISECONDS);
         }
+
+        log.debug("Recorded error metrics for {} in {}: {}",
+                errorType, listenerMethod, error.getMessage());
     }
 }

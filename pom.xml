@@ -110,11 +110,11 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- Micrometer for Metrics -->
+        <!-- Observability (metrics, tracing, health) -->
         <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-core</artifactId>
-            <optional>true</optional>
+            <groupId>org.fireflyframework</groupId>
+            <artifactId>fireflyframework-observability</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <!-- Serialization Dependencies (Optional) -->
