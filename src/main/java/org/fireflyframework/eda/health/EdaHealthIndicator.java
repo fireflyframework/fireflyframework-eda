@@ -20,12 +20,12 @@ import org.fireflyframework.eda.consumer.EventConsumer;
 import org.fireflyframework.eda.properties.EdaProperties;
 import org.fireflyframework.eda.publisher.EventPublisherFactory;
 import org.fireflyframework.eda.publisher.PublisherHealth;
-import lombok.RequiredArgsConstructor;
+import org.fireflyframework.observability.health.FireflyHealthIndicator;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
-import reactor.core.publisher.Flux;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -34,6 +34,8 @@ import java.util.Map;
 
 /**
  * Health indicator for the EDA library that reports the status of publishers and consumers.
+ * <p>
+ * Extends {@link FireflyHealthIndicator} for consistent health reporting across the Firefly Framework.
  * <p>
  * This indicator provides comprehensive health information about:
  * <ul>
@@ -44,98 +46,87 @@ import java.util.Map;
  * </ul>
  */
 @Component
-@ConditionalOnClass(name = "org.springframework.boot.actuator.health.HealthIndicator")
+@ConditionalOnClass(name = "org.springframework.boot.actuate.health.HealthIndicator")
 @ConditionalOnProperty(prefix = "firefly.eda", name = "health-enabled", havingValue = "true", matchIfMissing = true)
-@RequiredArgsConstructor
 @Slf4j
-public class EdaHealthIndicator {
+public class EdaHealthIndicator extends FireflyHealthIndicator {
 
     private final EdaProperties edaProperties;
     private final EventPublisherFactory publisherFactory;
     private final List<EventConsumer> eventConsumers;
 
-    public Map<String, Object> health() {
+    public EdaHealthIndicator(EdaProperties edaProperties,
+                              EventPublisherFactory publisherFactory,
+                              List<EventConsumer> eventConsumers) {
+        super("eda");
+        this.edaProperties = edaProperties;
+        this.publisherFactory = publisherFactory;
+        this.eventConsumers = eventConsumers;
+    }
+
+    @Override
+    protected void doHealthCheck(Health.Builder builder) throws Exception {
         try {
             log.debug("Checking EDA health status");
-            
-            Map<String, Object> healthBuilder = new HashMap<>();
-            healthBuilder.put("status", "UP");
-            Map<String, Object> details = new HashMap<>();
 
-            // Check overall EDA configuration
-            details.put("enabled", edaProperties.isEnabled());
-            details.put("defaultPublisherType", edaProperties.getDefaultPublisherType().name());
-            details.put("metricsEnabled", edaProperties.isMetricsEnabled());
-            details.put("tracingEnabled", edaProperties.isTracingEnabled());
+            builder.withDetail("enabled", edaProperties.isEnabled());
+            builder.withDetail("default.publisher.type", edaProperties.getDefaultPublisherType().name());
+            builder.withDetail("metrics.enabled", edaProperties.isMetricsEnabled());
+            builder.withDetail("tracing.enabled", edaProperties.isTracingEnabled());
 
             if (!edaProperties.isEnabled()) {
-                healthBuilder.put("status", "DOWN");
-                details.put("message", "EDA library is disabled");
-                healthBuilder.putAll(details);
-                return healthBuilder;
+                builder.down().withDetail("message", "EDA library is disabled");
+                return;
             }
 
             // Check publishers health
             Map<String, Object> publishersHealth = checkPublishersHealth();
-            details.put("publishers", publishersHealth);
+            builder.withDetail("publishers", publishersHealth);
 
             // Check consumers health
             Map<String, Object> consumersHealth = checkConsumersHealth();
-            details.put("consumers", consumersHealth);
+            builder.withDetail("consumers", consumersHealth);
 
             // Check resilience configuration
-            details.put("resilience", Map.of(
+            builder.withDetail("resilience", Map.of(
                     "enabled", edaProperties.getResilience().isEnabled(),
-                    "circuitBreakerEnabled", edaProperties.getResilience().getCircuitBreaker().isEnabled(),
-                    "retryEnabled", edaProperties.getResilience().getRetry().isEnabled(),
-                    "rateLimiterEnabled", edaProperties.getResilience().getRateLimiter().isEnabled()
+                    "circuit.breaker.enabled", edaProperties.getResilience().getCircuitBreaker().isEnabled(),
+                    "retry.enabled", edaProperties.getResilience().getRetry().isEnabled(),
+                    "rate.limiter.enabled", edaProperties.getResilience().getRateLimiter().isEnabled()
             ));
-
-            // Step events configuration removed - not part of core EDA library
 
             // Determine overall health status
             boolean hasHealthyPublishers = isHealthyMap(publishersHealth);
             boolean hasHealthyConsumers = consumersHealth.isEmpty() || isHealthyMap(consumersHealth);
 
             if (hasHealthyPublishers && hasHealthyConsumers) {
-                healthBuilder.put("status", "UP");
-                details.put("message", "All EDA components are healthy");
+                builder.up().withDetail("message", "All EDA components are healthy");
             } else {
-                healthBuilder.put("status", "DOWN");
-                details.put("message", "Some EDA components are unhealthy");
+                builder.down().withDetail("message", "Some EDA components are unhealthy");
             }
-            healthBuilder.putAll(details);
-            return healthBuilder;
 
         } catch (Exception e) {
             log.error("Error checking EDA health: {}", e.getMessage(), e);
-            Map<String, Object> errorHealth = new HashMap<>();
-            errorHealth.put("status", "DOWN");
-            errorHealth.put("message", "Error checking EDA health");
-            errorHealth.put("error", e.getMessage());
-            return errorHealth;
+            builder.down()
+                    .withDetail("message", "Error checking EDA health")
+                    .withException(e);
         }
     }
 
-    /**
-     * Checks the health of all publishers.
-     */
     private Map<String, Object> checkPublishersHealth() {
         try {
             Map<String, PublisherHealth> publishersHealth = publisherFactory.getPublishersHealth();
-            
-            Map<String, Object> result = Flux.fromIterable(publishersHealth.entrySet())
-                    .collectMap(
-                            Map.Entry::getKey,
-                            entry -> (Object) (entry.getValue() != null ? 
-                                    convertPublisherHealthToMap(entry.getValue()) : 
-                                    Map.of("status", "UNKNOWN"))
-                    )
-                    .timeout(Duration.ofSeconds(5))
-                    .onErrorReturn(Map.of("error", (Object) "Timeout checking publishers health"))
-                    .block();
-            
-            return result != null ? result : Map.of("error", "No publishers health data");
+
+            Map<String, Object> result = new HashMap<>();
+            for (Map.Entry<String, PublisherHealth> entry : publishersHealth.entrySet()) {
+                if (entry.getValue() != null) {
+                    result.put(entry.getKey(), convertPublisherHealthToMap(entry.getValue()));
+                } else {
+                    result.put(entry.getKey(), Map.of("status", "UNKNOWN"));
+                }
+            }
+
+            return result;
 
         } catch (Exception e) {
             log.warn("Error checking publishers health: {}", e.getMessage());
@@ -143,27 +134,26 @@ public class EdaHealthIndicator {
         }
     }
 
-    /**
-     * Checks the health of all consumers.
-     */
     private Map<String, Object> checkConsumersHealth() {
         if (eventConsumers.isEmpty()) {
             return Map.of();
         }
 
         try {
-            Map<String, Object> result = Flux.fromIterable(eventConsumers)
-                    .flatMap(consumer -> 
-                            consumer.getHealth()
-                                    .map(health -> Map.entry(consumer.getConsumerType(), (Object) convertConsumerHealthToMap(health)))
-                                    .onErrorReturn(Map.entry(consumer.getConsumerType(), (Object) Map.of("status", "ERROR")))
-                    )
-                    .collectMap(Map.Entry::getKey, Map.Entry::getValue)
-                    .timeout(Duration.ofSeconds(5))
-                    .onErrorReturn(Map.of("error", (Object) "Timeout checking consumers health"))
-                    .block();
-            
-            return result != null ? result : Map.of("error", "No consumers health data");
+            Map<String, Object> result = new HashMap<>();
+            for (EventConsumer consumer : eventConsumers) {
+                try {
+                    var health = consumer.getHealth().block(Duration.ofSeconds(5));
+                    if (health != null) {
+                        result.put(consumer.getConsumerType(), convertConsumerHealthToMap(health));
+                    } else {
+                        result.put(consumer.getConsumerType(), Map.of("status", "UNKNOWN"));
+                    }
+                } catch (Exception e) {
+                    result.put(consumer.getConsumerType(), Map.of("status", "ERROR", "error", e.getMessage()));
+                }
+            }
+            return result;
 
         } catch (Exception e) {
             log.warn("Error checking consumers health: {}", e.getMessage());
@@ -171,38 +161,32 @@ public class EdaHealthIndicator {
         }
     }
 
-    /**
-     * Converts PublisherHealth to a map for JSON serialization.
-     */
     private Map<String, Object> convertPublisherHealthToMap(PublisherHealth health) {
         Map<String, Object> healthMap = new HashMap<>();
         healthMap.put("status", health.getStatus());
         healthMap.put("available", health.isAvailable());
-        healthMap.put("publisherType", health.getPublisherType());
-        healthMap.put("connectionId", health.getConnectionId());
-        healthMap.put("lastChecked", health.getLastChecked());
-        
+        healthMap.put("publisher.type", health.getPublisherType());
+        healthMap.put("connection.id", health.getConnectionId());
+        healthMap.put("last.checked", health.getLastChecked());
+
         if (health.getDetails() != null) {
             healthMap.put("details", health.getDetails());
         }
         if (health.getErrorMessage() != null) {
             healthMap.put("error", health.getErrorMessage());
         }
-        
+
         return healthMap;
     }
 
-    /**
-     * Converts ConsumerHealth to a map for JSON serialization.
-     */
     private Map<String, Object> convertConsumerHealthToMap(org.fireflyframework.eda.consumer.ConsumerHealth health) {
         Map<String, Object> healthMap = new HashMap<>();
         healthMap.put("status", health.getStatus());
         healthMap.put("available", health.isAvailable());
         healthMap.put("running", health.isRunning());
-        healthMap.put("consumerType", health.getConsumerType());
-        healthMap.put("lastChecked", health.getLastChecked());
-        
+        healthMap.put("consumer.type", health.getConsumerType());
+        healthMap.put("last.checked", health.getLastChecked());
+
         if (health.getDetails() != null) {
             healthMap.put("details", health.getDetails());
         }
@@ -210,26 +194,23 @@ public class EdaHealthIndicator {
             healthMap.put("error", health.getErrorMessage());
         }
         if (health.getMessagesConsumed() != null) {
-            healthMap.put("messagesConsumed", health.getMessagesConsumed());
+            healthMap.put("messages.consumed", health.getMessagesConsumed());
         }
         if (health.getMessagesProcessed() != null) {
-            healthMap.put("messagesProcessed", health.getMessagesProcessed());
+            healthMap.put("messages.processed", health.getMessagesProcessed());
         }
         if (health.getMessagesFailures() != null) {
-            healthMap.put("messagesFailures", health.getMessagesFailures());
+            healthMap.put("messages.failures", health.getMessagesFailures());
         }
-        
+
         return healthMap;
     }
 
-    /**
-     * Checks if any component in the health map is healthy.
-     */
     private boolean isHealthyMap(Map<String, Object> healthMap) {
         if (healthMap.isEmpty()) {
-            return true; // Empty is considered healthy
+            return true;
         }
-        
+
         return healthMap.values().stream()
                 .filter(Map.class::isInstance)
                 .map(Map.class::cast)

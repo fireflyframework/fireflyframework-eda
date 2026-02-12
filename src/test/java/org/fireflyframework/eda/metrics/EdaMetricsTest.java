@@ -62,7 +62,7 @@ class EdaMetricsTest {
         metricsCollector.recordEventPublished(event, destination, publisherType);
 
         // Assert
-        Counter counter = meterRegistry.find("eda.events.published")
+        Counter counter = meterRegistry.find("firefly.eda.events.published")
             .tag("event.type", "SimpleTestEvent")
             .tag("destination", destination)
             .tag("publisher.type", publisherType)
@@ -83,7 +83,7 @@ class EdaMetricsTest {
         metricsCollector.recordEventConsumed(event, source, consumerType);
 
         // Assert
-        Counter counter = meterRegistry.find("eda.events.consumed")
+        Counter counter = meterRegistry.find("firefly.eda.events.consumed")
             .tag("event.type", "SimpleTestEvent")
             .tag("source", source)
             .tag("consumer.type", consumerType)
@@ -104,7 +104,7 @@ class EdaMetricsTest {
         metricsCollector.recordEventProcessingTime(event, listenerMethod, processingTime);
 
         // Assert
-        Timer timer = meterRegistry.find("eda.events.processing.time")
+        Timer timer = meterRegistry.find("firefly.eda.events.processing.time")
             .tag("event.type", "SimpleTestEvent")
             .tag("listener.method", listenerMethod)
             .timer();
@@ -126,7 +126,7 @@ class EdaMetricsTest {
         metricsCollector.recordEventError(event, listenerMethod, errorType, errorStrategy);
 
         // Assert
-        Counter counter = meterRegistry.find("eda.events.errors")
+        Counter counter = meterRegistry.find("firefly.eda.events.errors")
             .tag("event.type", "SimpleTestEvent")
             .tag("listener.method", listenerMethod)
             .tag("error.type", errorType)
@@ -148,7 +148,7 @@ class EdaMetricsTest {
         metricsCollector.recordPublisherHealth(publisherType, connectionId, isHealthy);
 
         // Assert
-        Counter counter = meterRegistry.find("eda.publisher.health")
+        Counter counter = meterRegistry.find("firefly.eda.publisher.health")
             .tag("publisher.type", publisherType)
             .tag("connection.id", connectionId)
             .tag("status", "healthy")
@@ -169,7 +169,7 @@ class EdaMetricsTest {
         metricsCollector.recordConsumerHealth(consumerType, connectionId, isHealthy);
 
         // Assert
-        Counter counter = meterRegistry.find("eda.consumer.health")
+        Counter counter = meterRegistry.find("firefly.eda.consumer.health")
             .tag("consumer.type", consumerType)
             .tag("connection.id", connectionId)
             .tag("status", "unhealthy")
@@ -191,7 +191,7 @@ class EdaMetricsTest {
         metricsCollector.recordRetryAttempt(event, listenerMethod, attemptNumber, successful);
 
         // Assert
-        Counter counter = meterRegistry.find("eda.events.retries")
+        Counter counter = meterRegistry.find("firefly.eda.events.retries")
             .tag("event.type", "SimpleTestEvent")
             .tag("listener.method", listenerMethod)
             .tag("attempt", "2")
@@ -214,7 +214,7 @@ class EdaMetricsTest {
         metricsCollector.recordDeadLetterQueue(event, originalDestination, dlqDestination, reason);
 
         // Assert
-        Counter counter = meterRegistry.find("eda.events.dead_letter_queue")
+        Counter counter = meterRegistry.find("firefly.eda.events.dead.letter.queue")
             .tag("event.type", "SimpleTestEvent")
             .tag("original.destination", originalDestination)
             .tag("dlq.destination", dlqDestination)
@@ -237,12 +237,12 @@ class EdaMetricsTest {
         metricsCollector.recordEventPublished(event1, "topic-2", "rabbitmq");
 
         // Assert
-        Counter kafkaCounter = meterRegistry.find("eda.events.published")
+        Counter kafkaCounter = meterRegistry.find("firefly.eda.events.published")
             .tag("destination", "topic-1")
             .tag("publisher.type", "kafka")
             .counter();
 
-        Counter rabbitmqCounter = meterRegistry.find("eda.events.published")
+        Counter rabbitmqCounter = meterRegistry.find("firefly.eda.events.published")
             .tag("destination", "topic-2")
             .tag("publisher.type", "rabbitmq")
             .counter();
@@ -279,7 +279,7 @@ class EdaMetricsTest {
         metricsCollector.recordEventError(null, "TestService.handle", "RuntimeException", "LOG_AND_CONTINUE");
 
         // Verify metrics are recorded with "unknown" event type
-        Counter publishedCounter = meterRegistry.find("eda.events.published")
+        Counter publishedCounter = meterRegistry.find("firefly.eda.events.published")
             .tag("event.type", "unknown")
             .counter();
 
@@ -299,7 +299,7 @@ class EdaMetricsTest {
 
         public void recordEventPublished(Object event, String destination, String publisherType) {
             String eventType = event != null ? event.getClass().getSimpleName() : "unknown";
-            Counter.builder("eda.events.published")
+            Counter.builder("firefly.eda.events.published")
                 .tag("event.type", eventType)
                 .tag("destination", destination)
                 .tag("publisher.type", publisherType)
@@ -309,7 +309,7 @@ class EdaMetricsTest {
 
         public void recordEventConsumed(Object event, String source, String consumerType) {
             String eventType = event != null ? event.getClass().getSimpleName() : "unknown";
-            Counter.builder("eda.events.consumed")
+            Counter.builder("firefly.eda.events.consumed")
                 .tag("event.type", eventType)
                 .tag("source", source)
                 .tag("consumer.type", consumerType)
@@ -319,7 +319,7 @@ class EdaMetricsTest {
 
         public void recordEventProcessingTime(Object event, String listenerMethod, Duration processingTime) {
             String eventType = event != null ? event.getClass().getSimpleName() : "unknown";
-            Timer.builder("eda.events.processing.time")
+            Timer.builder("firefly.eda.events.processing.time")
                 .tag("event.type", eventType)
                 .tag("listener.method", listenerMethod)
                 .register(meterRegistry)
@@ -328,7 +328,7 @@ class EdaMetricsTest {
 
         public void recordEventError(Object event, String listenerMethod, String errorType, String errorStrategy) {
             String eventType = event != null ? event.getClass().getSimpleName() : "unknown";
-            Counter.builder("eda.events.errors")
+            Counter.builder("firefly.eda.events.errors")
                 .tag("event.type", eventType)
                 .tag("listener.method", listenerMethod)
                 .tag("error.type", errorType)
@@ -338,7 +338,7 @@ class EdaMetricsTest {
         }
 
         public void recordPublisherHealth(String publisherType, String connectionId, boolean isHealthy) {
-            Counter.builder("eda.publisher.health")
+            Counter.builder("firefly.eda.publisher.health")
                 .tag("publisher.type", publisherType)
                 .tag("connection.id", connectionId)
                 .tag("status", isHealthy ? "healthy" : "unhealthy")
@@ -347,7 +347,7 @@ class EdaMetricsTest {
         }
 
         public void recordConsumerHealth(String consumerType, String connectionId, boolean isHealthy) {
-            Counter.builder("eda.consumer.health")
+            Counter.builder("firefly.eda.consumer.health")
                 .tag("consumer.type", consumerType)
                 .tag("connection.id", connectionId)
                 .tag("status", isHealthy ? "healthy" : "unhealthy")
@@ -357,7 +357,7 @@ class EdaMetricsTest {
 
         public void recordRetryAttempt(Object event, String listenerMethod, int attemptNumber, boolean successful) {
             String eventType = event != null ? event.getClass().getSimpleName() : "unknown";
-            Counter.builder("eda.events.retries")
+            Counter.builder("firefly.eda.events.retries")
                 .tag("event.type", eventType)
                 .tag("listener.method", listenerMethod)
                 .tag("attempt", String.valueOf(attemptNumber))
@@ -368,7 +368,7 @@ class EdaMetricsTest {
 
         public void recordDeadLetterQueue(Object event, String originalDestination, String dlqDestination, String reason) {
             String eventType = event != null ? event.getClass().getSimpleName() : "unknown";
-            Counter.builder("eda.events.dead_letter_queue")
+            Counter.builder("firefly.eda.events.dead.letter.queue")
                 .tag("event.type", eventType)
                 .tag("original.destination", originalDestination)
                 .tag("dlq.destination", dlqDestination)
@@ -379,9 +379,9 @@ class EdaMetricsTest {
 
         public Map<String, Object> getMetricsSummary() {
             return Map.of(
-                "events.published.total", meterRegistry.find("eda.events.published").counters().stream().mapToDouble(Counter::count).sum(),
-                "events.consumed.total", meterRegistry.find("eda.events.consumed").counters().stream().mapToDouble(Counter::count).sum(),
-                "events.errors.total", meterRegistry.find("eda.events.errors").counters().stream().mapToDouble(Counter::count).sum()
+                "events.published.total", meterRegistry.find("firefly.eda.events.published").counters().stream().mapToDouble(Counter::count).sum(),
+                "events.consumed.total", meterRegistry.find("firefly.eda.events.consumed").counters().stream().mapToDouble(Counter::count).sum(),
+                "events.errors.total", meterRegistry.find("firefly.eda.events.errors").counters().stream().mapToDouble(Counter::count).sum()
             );
         }
     }
