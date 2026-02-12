@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.fireflyframework</groupId>
         <artifactId>fireflyframework-parent</artifactId>
-        <version>26.02.01</version>
+        <version>26.02.02</version>
     </parent>
 
     <artifactId>fireflyframework-eda</artifactId>
@@ -122,15 +122,13 @@
         <dependency>
             <groupId>org.apache.avro</groupId>
             <artifactId>avro</artifactId>
-            <version>1.12.1</version>
             <optional>true</optional>
         </dependency>
 
-        <!-- Google Protocol Buffers for binary serialization -->
+        <!-- Google Protocol Buffers for binary serialization (versions managed by parent) -->
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
-            <version>3.25.1</version>
             <optional>true</optional>
         </dependency>
 
@@ -138,7 +136,6 @@
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java-util</artifactId>
-            <version>3.25.1</version>
             <optional>true</optional>
         </dependency>
 
