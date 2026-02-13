@@ -14,24 +14,32 @@
  * limitations under the License.
  */
 
-package org.fireflyframework.eda.serialization;
+package org.fireflyframework.eda.exception;
 
-import org.fireflyframework.eda.exception.EdaException;
+import org.fireflyframework.kernel.exception.FireflyInfrastructureException;
 
 /**
- * Exception thrown when serialization fails.
+ * Base exception for all EDA (Event-Driven Architecture) related errors.
  */
-public class SerializationException extends EdaException {
+public class EdaException extends FireflyInfrastructureException {
 
-    public SerializationException(String message) {
+    public EdaException(String message) {
         super(message);
     }
 
-    public SerializationException(String message, Throwable cause) {
+    public EdaException(Throwable cause) {
+        super(cause);
+    }
+
+    public EdaException(String message, Throwable cause) {
         super(message, cause);
     }
 
-    public SerializationException(Throwable cause) {
-        super(cause);
+    public EdaException(String message, String errorCode) {
+        super(message, errorCode);
+    }
+
+    public EdaException(String message, String errorCode, Throwable cause) {
+        super(message, errorCode, cause);
     }
 }
