@@ -91,13 +91,13 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Apache Kafka (Optional) -->
+        <!-- Apache Kafka -->
         <dependency>
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
         </dependency>
 
-        <!-- RabbitMQ (Optional) -->
+        <!-- RabbitMQ -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-amqp</artifactId>
