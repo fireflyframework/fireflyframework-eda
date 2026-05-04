@@ -17,7 +17,6 @@
 package org.fireflyframework.eda.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.fireflyframework.eda.properties.EdaProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -26,6 +25,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.Ordered;
 
 /**
@@ -158,18 +158,33 @@ public class FireflyEdaAutoConfiguration {
     }
 
     /**
-     * Provides a default ObjectMapper configured for EDA serialization.
+     * Provides the application's primary {@link ObjectMapper} bean.
      * <p>
-     * This bean is only created if no other ObjectMapper bean exists in the context.
-     * It includes JavaTimeModule for proper Java 8 date/time serialization.
+     * This is the general-purpose mapper consumed by controllers, EDA serializers,
+     * CQRS handlers, and any component that injects {@code ObjectMapper} without a
+     * qualifier. It is marked {@link Primary @Primary} so it wins disambiguation
+     * over module-specific qualified mappers (e.g. {@code cacheObjectMapper},
+     * {@code orchestrationPersistenceObjectMapper}, {@code sagaObjectMapper}) that
+     * coexist in the Spring context for internal framework use.
+     * <p>
+     * The mapper invokes {@link ObjectMapper#findAndRegisterModules()} to auto-discover
+     * every Jackson module on the classpath — at minimum {@code jackson-datatype-jsr310}
+     * (Java 8 date/time) and {@code jackson-datatype-jdk8} ({@link java.util.Optional}
+     * and friends), both of which are compile-scope transitive dependencies of this
+     * module. If parameter names or other modules are present, they are picked up too,
+     * keeping the primary mapper "general purpose" by design.
+     * <p>
+     * The {@link ConditionalOnMissingBean @ConditionalOnMissingBean} guard preserves
+     * compatibility with applications that already declare their own primary mapper.
      *
      * @return configured ObjectMapper instance
      */
     @Bean
+    @Primary
     @ConditionalOnMissingBean
     public ObjectMapper objectMapper() {
         ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
+        mapper.findAndRegisterModules();
         return mapper;
     }
 }
