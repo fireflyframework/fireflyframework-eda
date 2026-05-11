@@ -167,25 +167,27 @@ public class FireflyEdaAutoConfiguration {
      * {@code orchestrationPersistenceObjectMapper}, {@code sagaObjectMapper}) that
      * coexist in the Spring context for internal framework use.
      * <p>
-     * The mapper invokes {@link ObjectMapper#findAndRegisterModules()} to auto-discover
-     * every Jackson module on the classpath — at minimum {@code jackson-datatype-jsr310}
-     * (Java 8 date/time) and {@code jackson-datatype-jdk8} ({@link java.util.Optional}
-     * and friends), both of which are compile-scope transitive dependencies of this
-     * module. If parameter names or other modules are present, they are picked up too,
-     * keeping the primary mapper "general purpose" by design.
+     * Built through Spring Boot's autoconfigured {@link Jackson2ObjectMapperBuilder},
+     * so it honours every {@code spring.jackson.*} property the application sets in
+     * its {@code application.yaml} — most importantly
+     * {@code spring.jackson.serialization.write-dates-as-timestamps=false} which
+     * makes {@link java.time.Instant} / {@link java.time.LocalDateTime} fields
+     * serialize as ISO-8601 strings instead of numeric epochs in WebFlux responses.
+     * The builder also auto-registers every Jackson module on the classpath
+     * ({@code jackson-datatype-jsr310}, {@code jackson-datatype-jdk8},
+     * {@code jackson-module-parameter-names}, …).
      * <p>
      * The {@link ConditionalOnMissingBean @ConditionalOnMissingBean} guard preserves
      * compatibility with applications that already declare their own primary mapper.
      *
+     * @param builder Spring Boot's autoconfigured {@code Jackson2ObjectMapperBuilder}
      * @return configured ObjectMapper instance
      */
     @Bean
     @Primary
     @ConditionalOnMissingBean
-    public ObjectMapper objectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.findAndRegisterModules();
-        return mapper;
+    public ObjectMapper objectMapper(org.springframework.http.converter.json.Jackson2ObjectMapperBuilder builder) {
+        return builder.build();
     }
 }
 
