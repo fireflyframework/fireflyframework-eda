@@ -46,10 +46,12 @@ public class EventPublisherFactory {
     private final List<EventPublisher> availablePublishers;
     private final EdaProperties edaProperties;
     private final ObjectProvider<ResilientEventPublisherFactory> resilienceFactoryProvider;
-    
+
     // Cache publishers by type and connection ID
     private final Map<String, EventPublisher> publisherCache = new ConcurrentHashMap<>();
+    private volatile ResilientEventPublisherFactory cachedResilienceFactory;
     private Map<String, EventPublisher> publisherMap;
+
 
     /**
      * Gets an event publisher for the specified type and connection ID.
@@ -63,8 +65,31 @@ public class EventPublisherFactory {
             return getAutoSelectedPublisher(connectionId);
         }
 
-        String cacheKey = getCacheKey(publisherType, connectionId);
-        return publisherCache.computeIfAbsent(cacheKey, key -> createPublisher(publisherType, connectionId));
+        // Normalise the connection ID up front so that the cache key and the
+        // resilience4j entry name stay in lockstep -- otherwise
+        // getPublisher(type, null) and getPublisher(type, "default") collide
+        // in the cache but produce different resilience names, leaving the
+        // first caller's wrapped publisher pointing at a circuit breaker the
+        // second caller cannot look up by name.
+        String resolvedConnectionId = connectionId != null
+                ? connectionId
+                : edaProperties.getDefaultConnectionId();
+
+        // Drop the publisher cache whenever the resilience factory instance
+        // changes (cross-context bean shuffling on Spring's TestContext cache
+        // can otherwise leave us with publishers wrapped around stale
+        // resilience4j registries -- the autowired registries in this context
+        // would then look empty to assertions).
+        ResilientEventPublisherFactory currentResilienceFactory =
+                resilienceFactoryProvider.getIfAvailable();
+        if (currentResilienceFactory != cachedResilienceFactory) {
+            publisherCache.clear();
+            cachedResilienceFactory = currentResilienceFactory;
+        }
+
+        String cacheKey = getCacheKey(publisherType, resolvedConnectionId);
+        return publisherCache.computeIfAbsent(cacheKey,
+                key -> createPublisher(publisherType, resolvedConnectionId));
     }
 
     /**
@@ -238,10 +263,11 @@ public class EventPublisherFactory {
      * @return the selected publisher or null if none available
      */
     private EventPublisher getAutoSelectedPublisher(String connectionId) {
-        // Priority order: KAFKA → RABBITMQ → APPLICATION_EVENT
+        // Priority order: KAFKA → RABBITMQ → POSTGRES → APPLICATION_EVENT
         PublisherType[] priorityOrder = {
                 PublisherType.KAFKA,
                 PublisherType.RABBITMQ,
+                PublisherType.POSTGRES,
                 PublisherType.APPLICATION_EVENT
         };
 
