@@ -57,6 +57,7 @@ class ResilienceIntegrationTest extends BaseIntegrationTest {
 
 
 
+
     @Test
     @DisplayName("Should apply circuit breaker to event publishing")
     void shouldApplyCircuitBreakerToEventPublishing() {
@@ -69,7 +70,7 @@ class ResilienceIntegrationTest extends BaseIntegrationTest {
                 .verifyComplete();
 
         // Verify circuit breaker was created with correct naming pattern
-        String expectedCircuitBreakerName = "eda-publisher-application_event_null";
+        String expectedCircuitBreakerName = "eda-publisher-application_event_default";
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.find(expectedCircuitBreakerName)
                 .orElse(null);
         assertThat(circuitBreaker).isNotNull();
@@ -88,7 +89,7 @@ class ResilienceIntegrationTest extends BaseIntegrationTest {
                 .verifyComplete();
 
         // Verify retry was created with correct naming pattern
-        String expectedRetryName = "eda-publisher-application_event_null";
+        String expectedRetryName = "eda-publisher-application_event_default";
         Retry retry = retryRegistry.find(expectedRetryName)
                 .orElse(null);
         assertThat(retry).isNotNull();
@@ -139,7 +140,7 @@ class ResilienceIntegrationTest extends BaseIntegrationTest {
         }
         
         // Assert - Circuit breaker should remain closed
-        String expectedCircuitBreakerName = "eda-publisher-application_event_null";
+        String expectedCircuitBreakerName = "eda-publisher-application_event_default";
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.find(expectedCircuitBreakerName)
                 .orElse(null);
         assertThat(circuitBreaker).isNotNull();
@@ -207,13 +208,13 @@ class ResilienceIntegrationTest extends BaseIntegrationTest {
                 .verifyComplete();
         
         // Assert - Check metrics are available
-        String expectedCircuitBreakerName = "eda-publisher-application_event_null";
+        String expectedCircuitBreakerName = "eda-publisher-application_event_default";
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.find(expectedCircuitBreakerName)
                 .orElse(null);
         assertThat(circuitBreaker).isNotNull();
         assertThat(circuitBreaker.getMetrics().getNumberOfSuccessfulCalls()).isGreaterThan(0);
 
-        String expectedRetryName = "eda-publisher-application_event_null";
+        String expectedRetryName = "eda-publisher-application_event_default";
         Retry retry = retryRegistry.find(expectedRetryName)
                 .orElse(null);
         assertThat(retry).isNotNull();
@@ -242,11 +243,13 @@ class ResilienceIntegrationTest extends BaseIntegrationTest {
             assertThat(publisher).isNotNull();
             assertThat(publisher.isAvailable()).isTrue();
 
-            // Verify circuit breaker exists for this publisher
-            // Convert cache key format (APPLICATION_EVENT:default) to circuit breaker name format (application_event_null)
+            // Verify circuit breaker exists for this publisher. The factory
+            // normalises null/default into the configured default connection
+            // ID before forming the cache key and the resilience4j entry name,
+            // so both halves of the lookup use the same suffix here.
             String[] parts = publisherKey.split(":");
-            String publisherType = parts[0].toLowerCase().replace("_", "_");
-            String connectionId = parts.length > 1 && !parts[1].equals("default") ? parts[1] : "null";
+            String publisherType = parts[0].toLowerCase();
+            String connectionId = parts.length > 1 ? parts[1] : "default";
             String circuitBreakerName = "eda-publisher-" + publisherType + "_" + connectionId;
             CircuitBreaker circuitBreaker = circuitBreakerRegistry.find(circuitBreakerName)
                     .orElse(null);
@@ -286,7 +289,7 @@ class ResilienceIntegrationTest extends BaseIntegrationTest {
                 .verifyComplete();
         
         // Verify resilience metrics include this call
-        String expectedCircuitBreakerName = "eda-publisher-application_event_null";
+        String expectedCircuitBreakerName = "eda-publisher-application_event_default";
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.find(expectedCircuitBreakerName)
                 .orElse(null);
         assertThat(circuitBreaker).isNotNull();

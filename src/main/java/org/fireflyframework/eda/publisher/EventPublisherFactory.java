@@ -52,6 +52,7 @@ public class EventPublisherFactory {
     private volatile ResilientEventPublisherFactory cachedResilienceFactory;
     private Map<String, EventPublisher> publisherMap;
 
+
     /**
      * Gets an event publisher for the specified type and connection ID.
      *
@@ -63,6 +64,16 @@ public class EventPublisherFactory {
         if (publisherType == PublisherType.AUTO) {
             return getAutoSelectedPublisher(connectionId);
         }
+
+        // Normalise the connection ID up front so that the cache key and the
+        // resilience4j entry name stay in lockstep -- otherwise
+        // getPublisher(type, null) and getPublisher(type, "default") collide
+        // in the cache but produce different resilience names, leaving the
+        // first caller's wrapped publisher pointing at a circuit breaker the
+        // second caller cannot look up by name.
+        String resolvedConnectionId = connectionId != null
+                ? connectionId
+                : edaProperties.getDefaultConnectionId();
 
         // Drop the publisher cache whenever the resilience factory instance
         // changes (cross-context bean shuffling on Spring's TestContext cache
@@ -76,9 +87,9 @@ public class EventPublisherFactory {
             cachedResilienceFactory = currentResilienceFactory;
         }
 
-        String cacheKey = getCacheKey(publisherType, connectionId);
+        String cacheKey = getCacheKey(publisherType, resolvedConnectionId);
         return publisherCache.computeIfAbsent(cacheKey,
-                key -> createPublisher(publisherType, connectionId));
+                key -> createPublisher(publisherType, resolvedConnectionId));
     }
 
     /**
