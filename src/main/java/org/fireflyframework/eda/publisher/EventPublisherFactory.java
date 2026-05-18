@@ -64,7 +64,38 @@ public class EventPublisherFactory {
         }
 
         String cacheKey = getCacheKey(publisherType, connectionId);
-        return publisherCache.computeIfAbsent(cacheKey, key -> createPublisher(publisherType, connectionId));
+        EventPublisher cached = publisherCache.get(cacheKey);
+        if (cached != null && isProperlyWrapped(cached)) {
+            return cached;
+        }
+        // Either the cache miss path, or the cached entry was built before the
+        // resilience factory was available (test-context cache reuse races).
+        // Recreate so we never hand out an unwrapped publisher when resilience
+        // is configured.
+        EventPublisher created = createPublisher(publisherType, connectionId);
+        if (created != null) {
+            publisherCache.put(cacheKey, created);
+        }
+        return created;
+    }
+
+    /**
+     * Returns true if the publisher already reflects the current resilience
+     * configuration -- i.e., it is wrapped (or resilience is unavailable, in
+     * which case the bare publisher is the correct answer).
+     */
+    private boolean isProperlyWrapped(EventPublisher publisher) {
+        ResilientEventPublisherFactory resilienceFactory = resilienceFactoryProvider.getIfAvailable();
+        if (resilienceFactory == null) {
+            return true;
+        }
+        if (publisher instanceof org.fireflyframework.eda.resilience.ResilientEventPublisher) {
+            return true;
+        }
+        if (publisher instanceof DestinationAwarePublisher dap) {
+            return isProperlyWrapped(dap.getDelegate());
+        }
+        return false;
     }
 
     /**
