@@ -179,6 +179,54 @@ firefly:
 | `default-routing-key` | string | `"event"` | Default routing key |
 | `properties` | map | `{}` | Additional RabbitMQ connection properties |
 
+### PostgreSQL Publisher
+
+The PostgreSQL publisher uses an outbox table together with `pg_notify` to deliver events. Configuration lives under `firefly.eda.publishers.postgres.<connection-id>` -- never under `spring.r2dbc.*`.
+
+```yaml
+firefly:
+  eda:
+    publishers:
+      postgres:
+        default:  # Connection ID
+          enabled: true
+          host: "localhost"
+          port: 5432
+          database: "app"
+          username: "app"
+          password: "secret"
+          schema: "public"
+          outbox-table: "firefly_eda_outbox"
+          default-destination: "events"
+          auto-create-schema: true
+          max-pool-size: 10
+          properties:
+            statement_timeout: "30000"
+```
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `enabled` | boolean | `false` | Whether this PostgreSQL publisher connection is enabled |
+| `host` | string | `"localhost"` | PostgreSQL host |
+| `port` | int | `5432` | PostgreSQL port |
+| `database` | string | `null` | Database name |
+| `username` | string | `null` | Database username |
+| `password` | string | `null` | Database password |
+| `schema` | string | `"public"` | Schema containing the outbox table |
+| `outbox-table` | string | `"firefly_eda_outbox"` | Name of the outbox table |
+| `default-destination` | string | `"events"` | Default destination when none is provided to `publish()` |
+| `auto-create-schema` | boolean | `true` | Provision the outbox table, index, NOTIFY function and trigger at startup |
+| `max-pool-size` | int | `10` | Maximum R2DBC connection pool size used for outbox inserts |
+| `properties` | map | `{}` | Additional R2DBC PostgreSQL startup options (e.g., statement timeout) |
+
+When `auto-create-schema: true`, the publisher provisions:
+
+- `firefly_eda_outbox` table with `id`, `destination`, `channel`, `payload (BYTEA)`, `headers (JSONB)`, `status`, `attempts`, `error_message`, and timestamp columns
+- An index on `(status, created_at)` filtered to `status = 'PENDING'`
+- An index on `(channel, status)`
+- A `firefly_eda_notify_event()` trigger function that calls `pg_notify(NEW.channel, NEW.id::text)`
+- An `AFTER INSERT` trigger on the outbox table that runs the function
+
 ## Consumer Configuration
 
 Consumers are configured under `firefly.eda.consumer`.
@@ -288,6 +336,51 @@ firefly:
 | `properties` | map | `{}` | Additional RabbitMQ consumer properties |
 
 **Important**: RabbitMQ queues must be pre-declared and configured here. The `@EventListener` destinations are used for filtering messages after they are consumed from these queues, not for determining which queues to subscribe to.
+
+### PostgreSQL Consumer
+
+The PostgreSQL consumer holds one long-lived R2DBC connection to receive `NOTIFY` messages and creates short-lived connections to drain the outbox table. Configuration lives under `firefly.eda.consumer.postgres.<connection-id>`. Channels are derived from `@EventListener` annotations with `consumerType=POSTGRES` or `consumerType=AUTO`, and additionally from the `channels` property.
+
+```yaml
+firefly:
+  eda:
+    consumer:
+      postgres:
+        default:
+          enabled: true
+          host: "localhost"
+          port: 5432
+          database: "app"
+          username: "app"
+          password: "secret"
+          schema: "public"
+          outbox-table: "firefly_eda_outbox"
+          channels: "events,order-events"   # comma-separated destinations to LISTEN on
+          polling-interval: 30s             # NOTIFY-loss fallback poll cadence; set to 0s to disable
+          max-attempts: 3                   # rows beyond this attempt count are marked DEAD_LETTER
+          batch-size: 50                    # max rows fetched per poll cycle
+          max-pool-size: 5
+          properties: {}
+```
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `enabled` | boolean | `false` | Whether this PostgreSQL consumer connection is enabled |
+| `host` | string | `"localhost"` | PostgreSQL host |
+| `port` | int | `5432` | PostgreSQL port |
+| `database` | string | `null` | Database name |
+| `username` | string | `null` | Database username |
+| `password` | string | `null` | Database password |
+| `schema` | string | `"public"` | Schema containing the outbox table |
+| `outbox-table` | string | `"firefly_eda_outbox"` | Outbox table the consumer reads from |
+| `channels` | string | `"events"` | Comma-separated destinations to LISTEN on (combined with any from `@EventListener`) |
+| `polling-interval` | duration | `30s` | Fallback poll cadence for rows missed by NOTIFY; `0s` disables polling |
+| `max-attempts` | int | `3` | Failure attempts before a row transitions to `DEAD_LETTER` |
+| `batch-size` | int | `50` | Maximum rows fetched per poll cycle |
+| `max-pool-size` | int | `5` | Connection pool size for outbox queries; LISTEN uses one connection on top of this budget |
+| `properties` | map | `{}` | Additional R2DBC PostgreSQL startup options |
+
+**How acknowledgement works**: On successful dispatch, the row is updated to `status='PROCESSED', processed_at=NOW()`. On failure, `attempts` is incremented and `error_message` is recorded; once `attempts >= max-attempts`, the row moves to `status='DEAD_LETTER'`. Use the outbox table directly to inspect, reset, or requeue events.
 
 ### Application Event Consumer
 

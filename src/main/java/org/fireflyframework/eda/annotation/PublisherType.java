@@ -28,7 +28,7 @@ public enum PublisherType {
     /**
      * Automatically select the best available publisher.
      * <p>
-     * Selection priority: KAFKA → RABBITMQ → APPLICATION_EVENT
+     * Selection priority: KAFKA → RABBITMQ → POSTGRES → APPLICATION_EVENT
      */
     AUTO,
 
@@ -57,6 +57,17 @@ public enum PublisherType {
     RABBITMQ,
 
     /**
+     * PostgreSQL using LISTEN/NOTIFY with a transactional outbox table.
+     * <p>
+     * Provides reliable messaging without requiring a dedicated broker by
+     * persisting events to an outbox table and dispatching notifications via
+     * {@code pg_notify}. Supports acknowledgment, retries, and dead letter
+     * semantics through outbox row status updates. Ideal for services that
+     * already use PostgreSQL and want native transactional event publishing.
+     */
+    POSTGRES,
+
+    /**
      * No-operation publisher that discards all messages.
      * <p>
      * Used for testing or when messaging is disabled.
@@ -75,6 +86,7 @@ public enum PublisherType {
             case APPLICATION_EVENT -> "Spring Application Events";
             case KAFKA -> "Apache Kafka";
             case RABBITMQ -> "RabbitMQ";
+            case POSTGRES -> "PostgreSQL LISTEN/NOTIFY (transactional outbox)";
             case NOOP -> "No-operation (disabled)";
         };
     }
@@ -86,7 +98,7 @@ public enum PublisherType {
      */
     public boolean supportsPersistence() {
         return switch (this) {
-            case KAFKA, RABBITMQ -> true;
+            case KAFKA, RABBITMQ, POSTGRES -> true;
             case APPLICATION_EVENT, NOOP, AUTO -> false;
         };
     }
@@ -98,7 +110,7 @@ public enum PublisherType {
      */
     public boolean supportsOrdering() {
         return switch (this) {
-            case KAFKA -> true;
+            case KAFKA, POSTGRES -> true;
             case RABBITMQ, APPLICATION_EVENT, NOOP, AUTO -> false;
         };
     }

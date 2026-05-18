@@ -17,7 +17,6 @@
 package org.fireflyframework.eda.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.fireflyframework.eda.properties.EdaProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -26,6 +25,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.Ordered;
 
 /**
@@ -100,6 +100,21 @@ public class FireflyEdaAutoConfiguration {
                 log.info("  - RabbitMQ Publisher: DISABLED");
             }
 
+            // Postgres Publisher
+            var postgresPublisher = props.getPublishers().getPostgres().get("default");
+            if (postgresPublisher != null && postgresPublisher.isEnabled()) {
+                String host = postgresPublisher.getHost();
+                if (host != null && !host.isEmpty()) {
+                    log.info("  - Postgres Publisher: CONFIGURED (host: {}:{}, table: {}.{})",
+                        host, postgresPublisher.getPort(),
+                        postgresPublisher.getSchema(), postgresPublisher.getOutboxTable());
+                } else {
+                    log.info("  - Postgres Publisher: NOT CONFIGURED (host not set)");
+                }
+            } else {
+                log.info("  - Postgres Publisher: DISABLED");
+            }
+
             // Application Event Publisher
             if (props.getPublishers().getApplicationEvent().isEnabled()) {
                 log.info("  - Application Event Publisher: ENABLED");
@@ -142,6 +157,22 @@ public class FireflyEdaAutoConfiguration {
                 log.info("  - RabbitMQ Consumer: DISABLED");
             }
 
+            // Postgres Consumer
+            var postgresConsumer = props.getConsumer().getPostgres().get("default");
+            if (postgresConsumer != null && postgresConsumer.isEnabled()) {
+                String host = postgresConsumer.getHost();
+                if (host != null && !host.isEmpty()) {
+                    log.info("  - Postgres Consumer: CONFIGURED (host: {}:{}, table: {}.{}, polling: {})",
+                        host, postgresConsumer.getPort(),
+                        postgresConsumer.getSchema(), postgresConsumer.getOutboxTable(),
+                        postgresConsumer.getPollingInterval());
+                } else {
+                    log.info("  - Postgres Consumer: NOT CONFIGURED (host not set)");
+                }
+            } else {
+                log.info("  - Postgres Consumer: DISABLED");
+            }
+
             // Application Event Consumer
             if (props.getConsumer().getApplicationEvent().isEnabled()) {
                 log.info("  - Application Event Consumer: ENABLED");
@@ -158,19 +189,36 @@ public class FireflyEdaAutoConfiguration {
     }
 
     /**
-     * Provides a default ObjectMapper configured for EDA serialization.
+     * Provides the application's primary {@link ObjectMapper} bean.
      * <p>
-     * This bean is only created if no other ObjectMapper bean exists in the context.
-     * It includes JavaTimeModule for proper Java 8 date/time serialization.
+     * This is the general-purpose mapper consumed by controllers, EDA serializers,
+     * CQRS handlers, and any component that injects {@code ObjectMapper} without a
+     * qualifier. It is marked {@link Primary @Primary} so it wins disambiguation
+     * over module-specific qualified mappers (e.g. {@code cacheObjectMapper},
+     * {@code orchestrationPersistenceObjectMapper}, {@code sagaObjectMapper}) that
+     * coexist in the Spring context for internal framework use.
+     * <p>
+     * Built through Spring Boot's autoconfigured {@link Jackson2ObjectMapperBuilder},
+     * so it honours every {@code spring.jackson.*} property the application sets in
+     * its {@code application.yaml} — most importantly
+     * {@code spring.jackson.serialization.write-dates-as-timestamps=false} which
+     * makes {@link java.time.Instant} / {@link java.time.LocalDateTime} fields
+     * serialize as ISO-8601 strings instead of numeric epochs in WebFlux responses.
+     * The builder also auto-registers every Jackson module on the classpath
+     * ({@code jackson-datatype-jsr310}, {@code jackson-datatype-jdk8},
+     * {@code jackson-module-parameter-names}, …).
+     * <p>
+     * The {@link ConditionalOnMissingBean @ConditionalOnMissingBean} guard preserves
+     * compatibility with applications that already declare their own primary mapper.
      *
+     * @param builder Spring Boot's autoconfigured {@code Jackson2ObjectMapperBuilder}
      * @return configured ObjectMapper instance
      */
     @Bean
+    @Primary
     @ConditionalOnMissingBean
-    public ObjectMapper objectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        return mapper;
+    public ObjectMapper objectMapper(org.springframework.http.converter.json.Jackson2ObjectMapperBuilder builder) {
+        return builder.build();
     }
 }
 

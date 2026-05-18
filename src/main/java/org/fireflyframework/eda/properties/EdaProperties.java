@@ -185,10 +185,17 @@ public class EdaProperties {
         @Valid
         private final Map<String, RabbitMqConfig> rabbitmq = new HashMap<>();
 
+        /**
+         * PostgreSQL publisher configurations by connection ID.
+         */
+        @Valid
+        private final Map<String, PostgresConfig> postgres = new HashMap<>();
+
         // Initialize default connections
         public Publishers() {
             kafka.put("default", new KafkaConfig());
             rabbitmq.put("default", new RabbitMqConfig());
+            postgres.put("default", new PostgresConfig());
         }
 
         @Data
@@ -217,6 +224,71 @@ public class EdaProperties {
             private String virtualHost = "/";
             private String defaultExchange = "events";
             private String defaultRoutingKey = "event";
+            private Map<String, Object> properties = new HashMap<>();
+        }
+
+        @Data
+        public static class PostgresConfig {
+            /**
+             * Whether this PostgreSQL publisher connection is enabled.
+             */
+            private boolean enabled = false;
+
+            /**
+             * PostgreSQL host name or IP.
+             */
+            private String host = "localhost";
+
+            /**
+             * PostgreSQL port (default 5432).
+             */
+            private int port = 5432;
+
+            /**
+             * Database name.
+             */
+            private String database;
+
+            /**
+             * Database username.
+             */
+            private String username;
+
+            /**
+             * Database password.
+             */
+            private String password;
+
+            /**
+             * Schema name where the outbox table lives.
+             */
+            private String schema = "public";
+
+            /**
+             * Outbox table name used to persist events.
+             */
+            private String outboxTable = "firefly_eda_outbox";
+
+            /**
+             * Default destination/channel when none is provided to publish().
+             */
+            private String defaultDestination = "events";
+
+            /**
+             * If true, the auto-configuration creates the outbox table and
+             * NOTIFY trigger automatically at startup. Disable in environments
+             * that prefer to manage schema externally (e.g., via Flyway).
+             */
+            private boolean autoCreateSchema = true;
+
+            /**
+             * Maximum size of the R2DBC connection pool used by the publisher.
+             */
+            private int maxPoolSize = 10;
+
+            /**
+             * Additional R2DBC connection properties.
+             */
             private Map<String, Object> properties = new HashMap<>();
         }
     }
@@ -265,6 +337,12 @@ public class EdaProperties {
         private final Map<String, RabbitMqConfig> rabbitmq = new HashMap<>();
 
         /**
+         * PostgreSQL consumer configurations by connection ID.
+         */
+        @Valid
+        private final Map<String, PostgresConfig> postgres = new HashMap<>();
+
+        /**
          * NOOP consumer configuration.
          */
         @Valid
@@ -274,6 +352,7 @@ public class EdaProperties {
         public Consumer() {
             kafka.put("default", new KafkaConfig());
             rabbitmq.put("default", new RabbitMqConfig());
+            postgres.put("default", new PostgresConfig());
         }
 
         @Data
@@ -317,6 +396,90 @@ public class EdaProperties {
         }
 
         @Data
+        public static class PostgresConfig {
+            /**
+             * Whether this PostgreSQL consumer connection is enabled.
+             */
+            private boolean enabled = false;
+
+            /**
+             * PostgreSQL host name or IP.
+             */
+            private String host = "localhost";
+
+            /**
+             * PostgreSQL port (default 5432).
+             */
+            private int port = 5432;
+
+            /**
+             * Database name.
+             */
+            private String database;
+
+            /**
+             * Database username.
+             */
+            private String username;
+
+            /**
+             * Database password.
+             */
+            private String password;
+
+            /**
+             * Schema name where the outbox table lives.
+             */
+            private String schema = "public";
+
+            /**
+             * Outbox table name used to read events.
+             */
+            private String outboxTable = "firefly_eda_outbox";
+
+            /**
+             * Comma-separated list of channels/destinations to listen on when no
+             * {@code @EventListener} annotations are discovered. Defaults to
+             * the global default destination.
+             */
+            private String channels = "events";
+
+            /**
+             * Polling interval used as a fallback to LISTEN/NOTIFY in case
+             * notifications are missed (server restart, dropped connection,
+             * payload too large, etc.). Set to {@link Duration#ZERO} to
+             * disable polling.
+             */
+            private Duration pollingInterval = Duration.ofSeconds(30);
+
+            /**
+             * Maximum number of attempts before an event is moved to dead
+             * letter status in the outbox table.
+             */
+            @Min(value = 1, message = "Max attempts must be at least 1")
+            private int maxAttempts = 3;
+
+            /**
+             * Maximum number of events fetched in a single poll cycle.
+             */
+            @Min(value = 1, message = "Batch size must be at least 1")
+            private int batchSize = 50;
+
+            /**
+             * Maximum size of the R2DBC connection pool used by the consumer.
+             * Note: LISTEN/NOTIFY uses one long-lived connection outside this
+             * pool; this pool services SELECT/UPDATE queries on the outbox.
+             */
+            @Min(value = 1, message = "Max pool size must be at least 1")
+            private int maxPoolSize = 5;
+
+            /**
+             * Additional R2DBC connection properties.
+             */
+            private Map<String, Object> properties = new HashMap<>();
+        }
+
+        @Data
         public static class Noop {
             private boolean enabled = false;
         }
@@ -345,6 +508,7 @@ public class EdaProperties {
             case APPLICATION_EVENT -> publishers.getApplicationEvent();
             case KAFKA -> publishers.getKafka().get(connId);
             case RABBITMQ -> publishers.getRabbitmq().get(connId);
+            case POSTGRES -> publishers.getPostgres().get(connId);
             default -> null;
         };
     }

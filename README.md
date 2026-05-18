@@ -5,7 +5,7 @@
 [![Java](https://img.shields.io/badge/Java-21%2B-orange.svg)](https://openjdk.org)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-green.svg)](https://spring.io/projects/spring-boot)
 
-> Unified event-driven architecture library with Kafka, RabbitMQ, and Spring Application Events support.
+> Unified event-driven architecture library with Kafka, RabbitMQ, PostgreSQL (LISTEN/NOTIFY + outbox), and Spring Application Events support.
 
 ---
 
@@ -23,7 +23,7 @@
 
 ## Overview
 
-Firefly Framework EDA provides a standardized messaging abstraction for event-driven architectures, supporting multiple broker implementations through a unified publisher/consumer API. It enables reactive event publishing and consumption with built-in support for Apache Kafka, RabbitMQ, and Spring Application Events as transport mechanisms.
+Firefly Framework EDA provides a standardized messaging abstraction for event-driven architectures, supporting multiple broker implementations through a unified publisher/consumer API. It enables reactive event publishing and consumption with built-in support for Apache Kafka, RabbitMQ, PostgreSQL (via `LISTEN`/`NOTIFY` backed by a transactional outbox table), and Spring Application Events as transport mechanisms.
 
 The library features annotation-driven event publishing (`@EventPublisher`, `@PublishResult`), declarative event listeners (`@EventListener`), and a comprehensive set of event filtering, serialization, and error handling capabilities. It includes support for JSON, Avro, and Protobuf message serialization formats.
 
@@ -31,7 +31,7 @@ The resilient publisher wrapper provides circuit breaker integration, while the 
 
 ## Features
 
-- Multi-broker support: Apache Kafka, RabbitMQ, Spring Application Events
+- Multi-broker support: Apache Kafka, RabbitMQ, PostgreSQL (`LISTEN`/`NOTIFY` + outbox), Spring Application Events
 - Annotation-driven publishing: `@EventPublisher`, `@PublishResult`
 - Declarative event listening: `@EventListener` with SpEL-based filtering
 - Event envelope pattern with metadata propagation
@@ -41,16 +41,17 @@ The resilient publisher wrapper provides circuit breaker integration, while the 
 - Resilient publisher with circuit breaker support
 - Dynamic event listener registration at runtime
 - AMQP admin auto-configuration for RabbitMQ exchanges and queues
+- Transactional outbox table for PostgreSQL with auto-created schema and trigger
 - Custom error handling strategies with metrics and notification handlers
 - Health indicators and metrics for Actuator integration
-- Spring Boot auto-configuration for Kafka and RabbitMQ
+- Spring Boot auto-configuration for Kafka, RabbitMQ, and PostgreSQL
 
 ## Requirements
 
 - Java 21+
 - Spring Boot 3.x
 - Maven 3.9+
-- Apache Kafka or RabbitMQ (depending on chosen broker)
+- Apache Kafka, RabbitMQ, or PostgreSQL 11+ (depending on chosen transport)
 
 ## Installation
 
@@ -95,15 +96,75 @@ public class OrderEventHandler {
 ```yaml
 firefly:
   eda:
-    broker: kafka  # kafka, rabbitmq, spring
-    kafka:
-      bootstrap-servers: localhost:9092
-      consumer:
-        group-id: my-service
-    rabbitmq:
-      host: localhost
-      port: 5672
+    enabled: true
+    default-publisher-type: AUTO   # AUTO chooses KAFKA → RABBITMQ → POSTGRES → APPLICATION_EVENT
+    publishers:
+      enabled: true
+      kafka:
+        default:
+          enabled: true
+          bootstrap-servers: localhost:9092
+      rabbitmq:
+        default:
+          enabled: true
+          host: localhost
+          port: 5672
+      postgres:
+        default:
+          enabled: true
+          host: localhost
+          port: 5432
+          database: app
+          username: app
+          password: secret
+          schema: public
+          outbox-table: firefly_eda_outbox
+          default-destination: events
+          auto-create-schema: true   # provision outbox table + NOTIFY trigger at startup
+    consumer:
+      enabled: true
+      group-id: my-service
+      kafka:
+        default:
+          enabled: true
+          bootstrap-servers: localhost:9092
+      rabbitmq:
+        default:
+          enabled: true
+          host: localhost
+          port: 5672
+          queues: events-queue
+      postgres:
+        default:
+          enabled: true
+          host: localhost
+          port: 5432
+          database: app
+          username: app
+          password: secret
+          channels: events,order-events   # destinations to LISTEN on
+          polling-interval: 30s           # NOTIFY-loss fallback poll cadence
+          max-attempts: 3                 # outbox row moves to DEAD_LETTER after N failures
 ```
+
+### PostgreSQL transport at a glance
+
+- Each `publish()` performs a single `INSERT` into `firefly_eda_outbox`. A
+  database trigger fires `pg_notify(channel, id)` for every inserted row.
+- The consumer holds a dedicated R2DBC connection that runs `LISTEN <channel>`
+  for every subscribed destination. Notifications carry only the outbox row
+  id so payloads can be arbitrarily large.
+- On dispatch, the listener pipeline either marks the row `PROCESSED` or
+  increments `attempts`; once `attempts` reaches `max-attempts`, the row
+  moves to `DEAD_LETTER` status.
+- A periodic poll (`polling-interval`) catches rows that slipped past the
+  live channel (e.g., consumer offline at insert time, payload too large,
+  connection reset). Set it to `0s` to disable polling.
+- Channel names are derived deterministically from destinations via the
+  built-in mapper: non-alphanumeric characters become `_`, the result is
+  lower-cased, prefixed with `firefly_eda_`, and truncated to fit
+  PostgreSQL's 63-byte identifier limit with a stable hash suffix when
+  needed.
 
 ## Documentation
 
