@@ -30,6 +30,7 @@ import org.fireflyframework.eda.testconfig.TestEventModels;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -51,8 +52,15 @@ import static org.awaitility.Awaitility.await;
  * end-to-end publishing via the outbox table, LISTEN/NOTIFY-driven dispatch
  * to consumers, acknowledgement semantics, and the polling fallback for
  * missed notifications.
+ * <p>
+ * Marked {@code @DirtiesContext(AFTER_CLASS)} so the Spring TestContext cache
+ * evicts this test's context once it finishes -- the live LISTEN connection
+ * and polling subscription would otherwise survive across test classes and
+ * interact with other integration tests that share the {@code TestApplication}
+ * fingerprint.
  */
 @Testcontainers
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class PostgresIntegrationTest extends BaseIntegrationTest {
 
     @Container
