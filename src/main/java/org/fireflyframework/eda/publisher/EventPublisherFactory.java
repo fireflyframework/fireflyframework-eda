@@ -238,10 +238,11 @@ public class EventPublisherFactory {
      * @return the selected publisher or null if none available
      */
     private EventPublisher getAutoSelectedPublisher(String connectionId) {
-        // Priority order: KAFKA → RABBITMQ → APPLICATION_EVENT
+        // Priority order: KAFKA → RABBITMQ → POSTGRES → APPLICATION_EVENT
         PublisherType[] priorityOrder = {
                 PublisherType.KAFKA,
                 PublisherType.RABBITMQ,
+                PublisherType.POSTGRES,
                 PublisherType.APPLICATION_EVENT
         };
 

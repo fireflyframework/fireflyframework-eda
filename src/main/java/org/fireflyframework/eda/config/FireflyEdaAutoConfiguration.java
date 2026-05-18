@@ -100,6 +100,21 @@ public class FireflyEdaAutoConfiguration {
                 log.info("  - RabbitMQ Publisher: DISABLED");
             }
 
+            // Postgres Publisher
+            var postgresPublisher = props.getPublishers().getPostgres().get("default");
+            if (postgresPublisher != null && postgresPublisher.isEnabled()) {
+                String host = postgresPublisher.getHost();
+                if (host != null && !host.isEmpty()) {
+                    log.info("  - Postgres Publisher: CONFIGURED (host: {}:{}, table: {}.{})",
+                        host, postgresPublisher.getPort(),
+                        postgresPublisher.getSchema(), postgresPublisher.getOutboxTable());
+                } else {
+                    log.info("  - Postgres Publisher: NOT CONFIGURED (host not set)");
+                }
+            } else {
+                log.info("  - Postgres Publisher: DISABLED");
+            }
+
             // Application Event Publisher
             if (props.getPublishers().getApplicationEvent().isEnabled()) {
                 log.info("  - Application Event Publisher: ENABLED");
@@ -140,6 +155,22 @@ public class FireflyEdaAutoConfiguration {
                 }
             } else {
                 log.info("  - RabbitMQ Consumer: DISABLED");
+            }
+
+            // Postgres Consumer
+            var postgresConsumer = props.getConsumer().getPostgres().get("default");
+            if (postgresConsumer != null && postgresConsumer.isEnabled()) {
+                String host = postgresConsumer.getHost();
+                if (host != null && !host.isEmpty()) {
+                    log.info("  - Postgres Consumer: CONFIGURED (host: {}:{}, table: {}.{}, polling: {})",
+                        host, postgresConsumer.getPort(),
+                        postgresConsumer.getSchema(), postgresConsumer.getOutboxTable(),
+                        postgresConsumer.getPollingInterval());
+                } else {
+                    log.info("  - Postgres Consumer: NOT CONFIGURED (host not set)");
+                }
+            } else {
+                log.info("  - Postgres Consumer: DISABLED");
             }
 
             // Application Event Consumer
