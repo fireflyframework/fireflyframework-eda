@@ -22,9 +22,11 @@ import org.fireflyframework.eda.publisher.EventPublisherFactory;
 import org.fireflyframework.eda.publisher.PublisherHealth;
 import org.fireflyframework.observability.health.FireflyHealthIndicator;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -48,20 +50,21 @@ import java.util.Map;
 @Component
 @ConditionalOnClass(name = "org.springframework.boot.actuate.health.HealthIndicator")
 @ConditionalOnProperty(prefix = "firefly.eda", name = "health-enabled", havingValue = "true", matchIfMissing = true)
+@Lazy
 @Slf4j
 public class EdaHealthIndicator extends FireflyHealthIndicator {
 
     private final EdaProperties edaProperties;
     private final EventPublisherFactory publisherFactory;
-    private final List<EventConsumer> eventConsumers;
+    private final ObjectProvider<EventConsumer> eventConsumersProvider;
 
     public EdaHealthIndicator(EdaProperties edaProperties,
                               EventPublisherFactory publisherFactory,
-                              List<EventConsumer> eventConsumers) {
+                              ObjectProvider<EventConsumer> eventConsumersProvider) {
         super("eda");
         this.edaProperties = edaProperties;
         this.publisherFactory = publisherFactory;
-        this.eventConsumers = eventConsumers;
+        this.eventConsumersProvider = eventConsumersProvider;
     }
 
     @Override
@@ -135,6 +138,7 @@ public class EdaHealthIndicator extends FireflyHealthIndicator {
     }
 
     private Map<String, Object> checkConsumersHealth() {
+        List<EventConsumer> eventConsumers = eventConsumersProvider.stream().toList();
         if (eventConsumers.isEmpty()) {
             return Map.of();
         }
