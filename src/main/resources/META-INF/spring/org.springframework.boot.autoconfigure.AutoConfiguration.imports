@@ -1,7 +1,1 @@
 org.fireflyframework.eda.config.FireflyEdaAutoConfiguration
-org.fireflyframework.eda.config.FireflyEdaKafkaPublisherAutoConfiguration
-org.fireflyframework.eda.config.FireflyEdaKafkaConsumerAutoConfiguration
-org.fireflyframework.eda.config.FireflyEdaRabbitMqAutoConfiguration
-org.fireflyframework.eda.config.FireflyEdaAmqpAdminAutoConfiguration
-org.fireflyframework.eda.config.FireflyEdaPostgresPublisherAutoConfiguration
-org.fireflyframework.eda.config.FireflyEdaPostgresConsumerAutoConfiguration
